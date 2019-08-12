@@ -3,6 +3,7 @@ package updater
 import (
 	"github.com/coreos/clair"
 	"github.com/coreos/clair/database"
+	"github.com/coreos/clair/pkg/config"
 
 	"github.com/robfig/cron"
 	log "github.com/sirupsen/logrus"
@@ -12,10 +13,14 @@ const UpdaterScheduleSetting = "updater-schedule"
 
 var c *cron.Cron
 
-func ScheduleUpdater(db database.Datastore) {
+func ScheduleUpdater(db database.Datastore, defaultCron string) {
 	updaterSchedule, err := db.GetSetting(UpdaterScheduleSetting)
 	if err != nil {
 		log.Fatalf("Get setting '%s' error: %v", UpdaterScheduleSetting, err)
+	}
+
+	if len(updaterSchedule) == 0 {
+		updaterSchedule = defaultCron
 	}
 
 	_, err = cron.Parse(updaterSchedule)
@@ -48,7 +53,14 @@ func UpdateSchedule(db database.Datastore, schedule string) error {
 		return err
 	}
 
-	c.Stop()
+	if config.AppConfig.Updater.Disabled {
+		log.Info("Updater not scheduled as disabled")
+		return nil
+	}
+
+	if c != nil {
+		c.Stop()
+	}
 	c = cron.New()
 	c.AddFunc(schedule, func() {
 		log.Info("Start vulnerabilities database update by cron schedule.")
