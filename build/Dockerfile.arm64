@@ -1,0 +1,17 @@
+FROM arm64v8/golang:1.12-alpine as base
+ADD .   /go/src/github.com/coreos/clair/
+WORKDIR /go/src/github.com/coreos/clair/
+RUN apk add --no-cache git rpm xz build-base
+RUN export CLAIR_VERSION=$(git describe --always --tags --dirty) \
+    && go install -ldflags "-X github.com/coreos/clair/pkg/version.Version=$CLAIR_VERSION" -v github.com/coreos/clair/cmd/clair
+
+FROM arm64v8/alpine:3.8
+LABEL maintainer="huangyiyang@caicloud.io"
+RUN apk add --no-cache git rpm xz dumb-init
+COPY --from=base /go/bin/clair /clair
+VOLUME /config
+EXPOSE 6060 6061
+RUN chmod +x /clair
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 CMD wget -qO- 127.0.0.1:6061/health || exit 1
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+CMD ["/clair", "-config", "/config/config.yaml"]
