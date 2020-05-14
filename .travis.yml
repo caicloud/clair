@@ -2,6 +2,7 @@ language: go
 sudo: required
 
 install:
+- mv /home/travis/gopath/src/github.com/caicloud /home/travis/gopath/src/github.com/coreos
 - curl https://glide.sh/get | sh
 
 script:
