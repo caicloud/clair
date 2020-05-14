@@ -40,6 +40,8 @@ type MockDatastore struct {
 	FctFindLock                 func(name string) (string, time.Time, error)
 	FctPing                     func() bool
 	FctClose                    func()
+	FctGetSetting               func(name string) (string, error)
+	FctUpsertSetting            func(name, value string) (bool, error)
 }
 
 func (mds *MockDatastore) ListNamespaces() ([]Namespace, error) {
@@ -186,6 +188,20 @@ func (mds *MockDatastore) Close() {
 	if mds.FctClose != nil {
 		mds.FctClose()
 		return
+	}
+	panic("required mock function not implemented")
+}
+
+func (mds *MockDatastore) GetSetting(name string) (string, error) {
+	if mds.FctGetSetting != nil {
+		return mds.FctGetSetting(name)
+	}
+	panic("required mock function not implemented")
+}
+
+func (mds *MockDatastore) UpsertSetting(name, value string) (bool, error) {
+	if mds.FctGetSetting != nil {
+		return mds.FctUpsertSetting(name, value)
 	}
 	panic("required mock function not implemented")
 }
