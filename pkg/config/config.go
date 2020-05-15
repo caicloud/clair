@@ -1,18 +1,4 @@
-// Copyright 2017 clair authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-package main
+package config
 
 import (
 	"errors"
@@ -22,8 +8,6 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	"github.com/coreos/clair"
-	"github.com/coreos/clair/api"
 	"github.com/coreos/clair/database"
 	"github.com/coreos/clair/ext/notification"
 	"github.com/fernet/fernet-go"
@@ -39,13 +23,33 @@ type File struct {
 	Clair Config `yaml:"clair"`
 }
 
+// UpdaterConfig configures the regularly updater by cron
+type UpdaterConfig struct {
+	// Cron defines when to update, refer to https://godoc.org/github.com/robfig/cron
+	Cron string
+	// Disabled indicates whether the regular updater is disabled
+	Disabled bool
+}
+
+// Config is the configuration for the API service.
+type APIConfig struct {
+	Port                      int
+	HealthPort                int
+	Timeout                   time.Duration
+	PaginationKey             string
+	CertFile, KeyFile, CAFile string
+}
+
 // Config is the global configuration for an instance of Clair.
 type Config struct {
 	Database database.RegistrableComponentConfig
-	Updater  *clair.UpdaterConfig
+	Updater  *UpdaterConfig
 	Notifier *notification.Config
-	API      *api.Config
+	API      *APIConfig
 }
+
+// AppConfig is config loaded
+var AppConfig *Config
 
 // DefaultConfig is a configuration that can be used as a fallback value.
 func DefaultConfig() Config {
@@ -53,10 +57,11 @@ func DefaultConfig() Config {
 		Database: database.RegistrableComponentConfig{
 			Type: "pgsql",
 		},
-		Updater: &clair.UpdaterConfig{
-			Interval: 1 * time.Hour,
+		Updater: &UpdaterConfig{
+			Cron:     "@midnight",
+			Disabled: false,
 		},
-		API: &api.Config{
+		API: &APIConfig{
 			Port:       6060,
 			HealthPort: 6061,
 			Timeout:    900 * time.Second,
@@ -105,7 +110,7 @@ func LoadConfig(path string) (config *Config, err error) {
 	} else {
 		_, err = fernet.DecodeKey(config.API.PaginationKey)
 		if err != nil {
-			err = errors.New("Invalid Pagination key; must be 32-bit URL-safe base64")
+			err = errors.New("invalid Pagination key; must be 32-bit URL-safe base64")
 			return
 		}
 	}
